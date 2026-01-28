@@ -1,0 +1,1257 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>数轴动点问题演示 - 青春版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        * { 
+            box-sizing: border-box; 
+            margin: 0; 
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        html {
+            font-size: 16px;
+        }
+        
+        @media (max-width: 375px) {
+            html { font-size: 14px; }
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #1f2937;
+            overflow-x: hidden;
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+        
+        /* 明亮活泼的配色 */
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            border: 2px solid rgba(255,255,255,0.5);
+            overflow: hidden;
+        }
+        
+        .card-header {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 1rem 1.25rem;
+            font-weight: 700;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .card-header.blue {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+        
+        .card-header.green {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        }
+        
+        .card-header.purple {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            color: #764ba2;
+        }
+        
+        .card-body {
+            padding: 1.25rem;
+        }
+        
+        /* Canvas容器 - 移动端优化 */
+        .canvas-wrapper {
+            position: relative;
+            width: 100%;
+            height: 280px;
+            background: linear-gradient(180deg, #f0f9ff 0%, #e0f2fe 100%);
+            border-radius: 16px;
+            overflow: hidden;
+            border: 3px solid #bae6fd;
+        }
+        
+        @media (min-width: 768px) {
+            .canvas-wrapper { height: 350px; }
+        }
+        
+        #mainCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+        }
+        
+        /* 时间显示 - 大字体适合青少年 */
+        .time-display {
+            font-size: 2.5rem;
+            font-weight: 800;
+            text-align: center;
+            background: linear-gradient(90deg, #f093fb, #f5576c);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin: 0.5rem 0;
+            font-family: 'Courier New', monospace;
+            letter-spacing: -1px;
+        }
+        
+        @media (min-width: 768px) {
+            .time-display { font-size: 3.5rem; }
+        }
+        
+        /* 滑块 - 移动端优化 */
+        .slider-box {
+            padding: 1rem;
+            background: #f8fafc;
+            border-radius: 16px;
+            margin: 1rem 0;
+        }
+        
+        #timeSlider {
+            width: 100%;
+            height: 12px;
+            -webkit-appearance: none;
+            background: #e2e8f0;
+            border-radius: 6px;
+            outline: none;
+            cursor: pointer;
+        }
+        
+        #timeSlider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 28px;
+            height: 28px;
+            background: linear-gradient(135deg, #f093fb, #f5576c);
+            border-radius: 50%;
+            cursor: grab;
+            box-shadow: 0 4px 15px rgba(245, 87, 108, 0.4);
+            border: 3px solid white;
+            transition: transform 0.1s;
+        }
+        
+        #timeSlider::-webkit-slider-thumb:active {
+            transform: scale(1.2);
+            cursor: grabbing;
+        }
+        
+        .slider-marks {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 8px;
+            font-size: 0.75rem;
+            color: #64748b;
+            font-weight: 600;
+        }
+        
+        /* 按钮 - 大而明亮 */
+        .btn {
+            padding: 0.875rem 1.5rem;
+            border: none;
+            border-radius: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 1rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        
+        .btn:active {
+            transform: scale(0.95);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+            color: #065f46;
+        }
+        
+        .btn-pause {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            color: #991b1b;
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            color: #764ba2;
+        }
+        
+        /* 关键时间点 - 横向滚动 */
+        .time-scroll {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            padding: 0.5rem 0;
+            margin: 0 -0.5rem;
+        }
+        
+        .time-scroll::-webkit-scrollbar {
+            height: 4px;
+        }
+        
+        .time-scroll::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 2px;
+        }
+        
+        .time-pills {
+            display: flex;
+            gap: 0.75rem;
+            padding: 0 0.5rem;
+            min-width: max-content;
+        }
+        
+        .time-pill {
+            padding: 0.625rem 1rem;
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 50px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #475569;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        
+        .time-pill:active {
+            transform: scale(0.95);
+        }
+        
+        .time-pill.active {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            border-color: transparent;
+            box-shadow: 0 4px 15px rgba(245, 87, 108, 0.3);
+        }
+        
+        .time-pill.special {
+            border-color: #fbbf24;
+            color: #d97706;
+        }
+        
+        .time-pill.special.active {
+            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+            color: white;
+        }
+        
+        /* 数据卡片 - 网格布局 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+        
+        @media (min-width: 640px) {
+            .stats-grid { grid-template-columns: repeat(4, 1fr); }
+        }
+        
+        .stat-item {
+            background: white;
+            border-radius: 16px;
+            padding: 1rem;
+            text-align: center;
+            border: 2px solid #e2e8f0;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .stat-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: #e2e8f0;
+            transition: background 0.3s;
+        }
+        
+        .stat-item.highlight {
+            border-color: #fbbf24;
+            transform: translateY(-4px);
+            box-shadow: 0 10px 25px rgba(251, 191, 36, 0.2);
+        }
+        
+        .stat-item.highlight::before {
+            background: linear-gradient(90deg, #fbbf24, #f59e0b);
+        }
+        
+        .stat-item.highlight-sym {
+            border-color: #34d399;
+            transform: translateY(-4px);
+            box-shadow: 0 10px 25px rgba(52, 211, 153, 0.2);
+        }
+        
+        .stat-item.highlight-sym::before {
+            background: linear-gradient(90deg, #34d399, #10b981);
+        }
+        
+        .stat-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 0.5rem;
+            font-size: 1.25rem;
+        }
+        
+        .stat-icon.p { background: #ede9fe; }
+        .stat-icon.q { background: #fce7f3; }
+        .stat-icon.pq { background: #dbeafe; }
+        .stat-icon.origin { background: #d1fae5; }
+        
+        .stat-label {
+            font-size: 0.75rem;
+            color: #64748b;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+        
+        .stat-value {
+            font-size: 1.25rem;
+            font-weight: 800;
+            font-family: 'Courier New', monospace;
+        }
+        
+        @media (min-width: 640px) {
+            .stat-value { font-size: 1.5rem; }
+        }
+        
+        .stat-value.p { color: #8b5cf6; }
+        .stat-value.q { color: #ec4899; }
+        .stat-value.pq { color: #3b82f6; }
+        .stat-value.origin { color: #10b981; }
+        
+        .stat-desc {
+            font-size: 0.625rem;
+            color: #94a3b8;
+            margin-top: 0.25rem;
+            font-weight: 500;
+        }
+        
+        /* 设置开关 */
+        .settings {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 2px dashed #e2e8f0;
+        }
+        
+        .setting-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: white;
+            padding: 0.5rem 1rem;
+            border-radius: 50px;
+            border: 2px solid #e2e8f0;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #475569;
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        .toggle-switch {
+            width: 44px;
+            height: 24px;
+            background: #e2e8f0;
+            border-radius: 12px;
+            position: relative;
+            transition: background 0.3s;
+        }
+        
+        .toggle-switch.on {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        }
+        
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.3s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .toggle-switch.on::after {
+            transform: translateX(20px);
+        }
+        
+        /* 暂停弹窗 */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.6);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            padding: 1rem;
+            backdrop-filter: blur(5px);
+        }
+        
+        .modal-overlay.show { display: flex; }
+        
+        .modal-content {
+            background: white;
+            border-radius: 24px;
+            padding: 2rem;
+            text-align: center;
+            max-width: 320px;
+            width: 100%;
+            animation: bounceIn 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            box-shadow: 0 25px 50px rgba(0,0,0,0.3);
+        }
+        
+        @keyframes bounceIn {
+            0% { transform: scale(0.3); opacity: 0; }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        
+        .modal-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            margin: 0 auto 1rem;
+            box-shadow: 0 10px 25px rgba(52, 211, 153, 0.3);
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: #10b981;
+            margin-bottom: 0.5rem;
+        }
+        
+        .modal-text {
+            color: #64748b;
+            font-size: 0.9375rem;
+            line-height: 1.6;
+            margin-bottom: 1.5rem;
+        }
+        
+        .modal-value {
+            background: #f0fdf4;
+            border: 2px solid #34d399;
+            border-radius: 12px;
+            padding: 1rem;
+            font-family: 'Courier New', monospace;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #065f46;
+            margin-bottom: 1.5rem;
+        }
+        
+        /* 解答区 */
+        .solution-card {
+            background: white;
+            border-radius: 16px;
+            padding: 1.25rem;
+            margin: 1rem 0;
+            border-left: 4px solid #f093fb;
+        }
+        
+        .solution-card h3 {
+            color: #f5576c;
+            font-weight: 700;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .solution-card p {
+            color: #475569;
+            font-size: 0.9375rem;
+            line-height: 1.6;
+        }
+        
+        .answer-tag {
+            display: inline-block;
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+            color: #065f46;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 700;
+            margin-top: 0.5rem;
+        }
+        
+        /* 手势提示 */
+        .gesture-hint {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.6);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .gesture-hint.show {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div style="max-width: 800px; margin: 0 auto; padding: 1rem;">
+        
+        <!-- 标题 -->
+        <div style="text-align: center; margin-bottom: 1.5rem;">
+            <h1 style="font-size: 1.75rem; font-weight: 800; color: white; text-shadow: 0 2px 10px rgba(0,0,0,0.2); margin-bottom: 0.5rem;">
+                🎯 数轴动点问题
+            </h1>
+            <p style="color: rgba(255,255,255,0.9); font-size: 0.9375rem;">第27题 · 互动演示</p>
+        </div>
+
+        <!-- 主演示区 -->
+        <div class="card" style="margin-bottom: 1rem;">
+            <div class="card-header">
+                <span>🎮</span>
+                <span>动态演示</span>
+            </div>
+            
+            <div class="card-body">
+                <!-- 时间显示 -->
+                <div class="time-display">t = <span id="timeText">0.00</span>s</div>
+                
+                <!-- 滑块 -->
+                <div class="slider-box">
+                    <input type="range" id="timeSlider" min="0" max="20" step="0.001" value="0">
+                    <div class="slider-marks">
+                        <span>0s</span>
+                        <span>5s</span>
+                        <span>10s</span>
+                        <span>15s</span>
+                        <span>20s</span>
+                    </div>
+                </div>
+                
+                <!-- 控制按钮 -->
+                <div style="display: flex; gap: 0.75rem; margin-bottom: 1rem;">
+                    <button class="btn btn-primary" id="playBtn" onclick="togglePlay()" style="flex: 1;">
+                        <span id="playIcon">▶</span>
+                        <span id="playText">播放</span>
+                    </button>
+                    <button class="btn btn-secondary" onclick="reset()" style="width: 80px;">
+                        ↺
+                    </button>
+                </div>
+                
+                <!-- 关键时间点 - 横向滚动 -->
+                <div class="time-scroll">
+                    <div class="time-pills">
+                        <div class="time-pill active" onclick="jumpTo(0)">起点</div>
+                        <div class="time-pill" onclick="jumpTo(6.667)">PQ=8 ⭐</div>
+                        <div class="time-pill special" onclick="jumpTo(8)">对称!</div>
+                        <div class="time-pill special" onclick="jumpTo(9.333)">对称②</div>
+                        <div class="time-pill" onclick="jumpTo(12)">PQ=8②</div>
+                        <div class="time-pill" onclick="jumpTo(20)">终点</div>
+                    </div>
+                </div>
+                
+                <!-- 设置 -->
+                <div class="settings">
+                    <div class="setting-item" onclick="toggleSetting('autoPause')">
+                        <div class="toggle-switch on" id="autoPauseToggle"></div>
+                        <span>自动暂停</span>
+                    </div>
+                    <div class="setting-item" onclick="toggleSetting('showTrail')">
+                        <div class="toggle-switch on" id="showTrailToggle"></div>
+                        <span>显示轨迹</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Canvas演示 -->
+        <div class="card" style="margin-bottom: 1rem;">
+            <div class="card-header blue">
+                <span>📊</span>
+                <span>数轴可视化</span>
+            </div>
+            <div class="card-body" style="padding: 0.75rem;">
+                <div class="canvas-wrapper">
+                    <canvas id="mainCanvas"></canvas>
+                    <div class="gesture-hint" id="gestureHint">👆 左右滑动调节时间</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 数据面板 -->
+        <div class="card" style="margin-bottom: 1rem;">
+            <div class="card-header green">
+                <span>📈</span>
+                <span>实时数据</span>
+            </div>
+            <div class="card-body" style="padding: 0.75rem;">
+                <div class="stats-grid">
+                    <div class="stat-item" id="boxP">
+                        <div class="stat-icon p">🏃</div>
+                        <div class="stat-label">点P位置</div>
+                        <div class="stat-value p" id="valP">-18.0</div>
+                        <div class="stat-desc">速度+2</div>
+                    </div>
+                    <div class="stat-item" id="boxQ">
+                        <div class="stat-icon q">🏃‍♀️</div>
+                        <div class="stat-label">点Q位置</div>
+                        <div class="stat-value q" id="valQ">10.0</div>
+                        <div class="stat-desc">速度-1</div>
+                    </div>
+                    <div class="stat-item" id="boxPQ">
+                        <div class="stat-icon pq">📏</div>
+                        <div class="stat-label">PQ距离</div>
+                        <div class="stat-value pq" id="valPQ">28.0</div>
+                        <div class="stat-desc" id="descPQ">正在接近</div>
+                    </div>
+                    <div class="stat-item" id="boxOrigin">
+                        <div class="stat-icon origin">⚖️</div>
+                        <div class="stat-label">到原点距离</div>
+                        <div class="stat-value origin" id="valOrigin">18|10</div>
+                        <div class="stat-desc" id="descOrigin">不对称</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 解答 -->
+        <div class="card">
+            <div class="card-header purple">
+                <span>✨</span>
+                <span>题目解答</span>
+            </div>
+            <div class="card-body" style="padding: 0.75rem;">
+                <div class="solution-card">
+                    <h3><span>1️⃣</span> 求a, b的值</h3>
+                    <p>|a+18| + (b-10)² = 0</p>
+                    <span class="answer-tag">a=-18, b=10</span>
+                </div>
+                
+                <div class="solution-card" style="border-color: #34d399;">
+                    <h3 style="color: #10b981;"><span>2️⃣</span> 到原点距离相等</h3>
+                    <p>|-18+2t| = |10-t|</p>
+                    <p style="margin-top: 0.5rem;"><strong>两个解：</strong></p>
+                    <span class="answer-tag">t=8s (对称)</span>
+                    <span class="answer-tag" style="margin-left: 0.5rem;">t=28/3s (同侧)</span>
+                </div>
+                
+                <div class="solution-card" style="border-color: #60a5fa;">
+                    <h3 style="color: #3b82f6;"><span>3️⃣</span> PQ距离为8</h3>
+                    <p>|3t-28| = 8</p>
+                    <p style="margin-top: 0.5rem;"><strong>两个解：</strong></p>
+                    <span class="answer-tag">t=20/3s (相遇前)</span>
+                    <span class="answer-tag" style="margin-left: 0.5rem;">t=12s (相遇后)</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- 暂停弹窗 -->
+    <div class="modal-overlay" id="pauseModal" onclick="resume()">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-icon">🎉</div>
+            <div class="modal-title">发现对称点!</div>
+            <div class="modal-text">
+                点P和点Q到原点的距离相等啦<br>
+                这是第(2)问的一个答案哦
+            </div>
+            <div class="modal-value" id="modalValue">|P| = |Q| = 2.00</div>
+            <button class="btn btn-primary" onclick="resume()" style="width: 100%;">
+                ▶ 继续探索
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // ==================== 常量 ====================
+        const A = -18, B = 10, VP = 2, VQ = 1;
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        let width, height, centerX, centerY, scale;
+        let currentTime = 0, isPlaying = false, animationId = null;
+        let settings = { autoPause: true, showTrail: true };
+        let pausedForSymmetry = false, lastSymmetryCheck = -1;
+        let touchStartX = 0, touchStartTime = 0;
+        
+        // ==================== 初始化 ====================
+        function init() {
+            resize();
+            window.addEventListener('resize', resize);
+            
+            // 滑块
+            const slider = document.getElementById('timeSlider');
+            slider.addEventListener('input', (e) => {
+                setTime(parseFloat(e.target.value));
+                if (isPlaying) stop();
+            });
+            
+            // 触摸手势
+            canvas.addEventListener('touchstart', handleTouchStart, {passive: false});
+            canvas.addEventListener('touchmove', handleTouchMove, {passive: false});
+            canvas.addEventListener('touchend', handleTouchEnd);
+            
+            // 鼠标手势
+            canvas.addEventListener('mousedown', handleMouseDown);
+            
+            // 键盘
+            document.addEventListener('keydown', (e) => {
+                if (e.code === 'Space') {
+                    e.preventDefault();
+                    if (pausedForSymmetry) resume();
+                    else togglePlay();
+                }
+            });
+            
+            updateUI();
+            render();
+            
+            // 显示手势提示
+            setTimeout(() => {
+                document.getElementById('gestureHint').classList.add('show');
+                setTimeout(() => {
+                    document.getElementById('gestureHint').classList.remove('show');
+                }, 3000);
+            }, 1000);
+        }
+        
+        function resize() {
+            const wrapper = document.querySelector('.canvas-wrapper');
+            width = wrapper.clientWidth;
+            height = wrapper.clientHeight;
+            
+            // 高分屏适配
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = width * dpr;
+            canvas.height = height * dpr;
+            ctx.scale(dpr, dpr);
+            
+            centerY = height / 2;
+            scale = Math.min(width / 60, 18);
+            centerX = width / 2;
+            
+            render();
+        }
+        
+        // ==================== 手势控制 ====================
+        function handleTouchStart(e) {
+            touchStartX = e.touches[0].clientX;
+            touchStartTime = currentTime;
+            if (isPlaying) stop();
+        }
+        
+        function handleTouchMove(e) {
+            e.preventDefault();
+            const dx = e.touches[0].clientX - touchStartX;
+            const dt = dx / (width / 20); // 整个屏幕宽度对应20秒
+            let newTime = touchStartTime + dt;
+            newTime = Math.max(0, Math.min(20, newTime));
+            setTime(newTime);
+            document.getElementById('timeSlider').value = newTime;
+        }
+        
+        function handleTouchEnd(e) {
+            // 惯性滑动可在此实现
+        }
+        
+        function handleMouseDown(e) {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const t = (x / width) * 20;
+            setTime(Math.max(0, Math.min(20, t)));
+            document.getElementById('timeSlider').value = currentTime;
+            if (isPlaying) stop();
+        }
+        
+        // ==================== 数学计算 ====================
+        function getPosition(t) {
+            return {
+                p: A + VP * t,
+                q: B - VQ * t,
+                dist: Math.abs(3*t - 28),
+                distP: Math.abs(A + VP*t),
+                distQ: Math.abs(B - VQ*t)
+            };
+        }
+        
+        // ==================== 控制逻辑 ====================
+        function setTime(t) {
+            currentTime = t;
+            updateUI();
+            render();
+            checkSymmetry();
+        }
+        
+        function jumpTo(t) {
+            setTime(t);
+            if (isPlaying) stop();
+            
+            // 更新按钮状态
+            document.querySelectorAll('.time-pill').forEach(pill => {
+                pill.classList.remove('active');
+                const pillT = parseFloat(pill.getAttribute('onclick').match(/[\d.]+/)?.[0] || 0);
+                if (Math.abs(t - pillT) < 0.1) pill.classList.add('active');
+            });
+        }
+        
+        function togglePlay() {
+            if (pausedForSymmetry) resume();
+            else if (isPlaying) stop();
+            else play();
+        }
+        
+        function play() {
+            if (currentTime >= 20) currentTime = 0;
+            isPlaying = true;
+            lastFrameTime = performance.now();
+            updatePlayButton();
+            loop();
+        }
+        
+        function stop() {
+            isPlaying = false;
+            if (animationId) cancelAnimationFrame(animationId);
+            updatePlayButton();
+        }
+        
+        function reset() {
+            stop();
+            pausedForSymmetry = false;
+            lastSymmetryCheck = -1;
+            document.getElementById('pauseModal').classList.remove('show');
+            setTime(0);
+            jumpTo(0);
+        }
+        
+        function loop() {
+            if (!isPlaying) return;
+            const now = performance.now();
+            const dt = (now - lastFrameTime) / 1000;
+            lastFrameTime = now;
+            
+            currentTime += dt;
+            if (currentTime >= 20) { currentTime = 20; stop(); }
+            
+            document.getElementById('timeSlider').value = currentTime;
+            updateUI();
+            render();
+            
+            if (!checkSymmetry()) {
+                animationId = requestAnimationFrame(loop);
+            }
+        }
+        
+        // ==================== 对称检测 ====================
+        function checkSymmetry() {
+            if (!settings.autoPause || pausedForSymmetry) return false;
+            
+            const pos = getPosition(currentTime);
+            const isSym = Math.abs(pos.distP - pos.distQ) < 0.08 && currentTime > 0.5;
+            const nearPoint = [8, 28/3].some(st => 
+                Math.abs(currentTime - st) < 0.15 && Math.abs(currentTime - lastSymmetryCheck) > 0.5
+            );
+            
+            if (isSym && nearPoint) {
+                lastSymmetryCheck = currentTime;
+                pausedForSymmetry = true;
+                stop();
+                document.getElementById('modalValue').textContent = 
+                    `|P| = |Q| = ${pos.distP.toFixed(2)}`;
+                document.getElementById('pauseModal').classList.add('show');
+                document.getElementById('boxOrigin').classList.add('highlight-sym');
+                return true;
+            }
+            return false;
+        }
+        
+        function resume() {
+            pausedForSymmetry = false;
+            document.getElementById('pauseModal').classList.remove('show');
+            document.getElementById('boxOrigin').classList.remove('highlight-sym');
+            currentTime += 0.15;
+            document.getElementById('timeSlider').value = currentTime;
+            updateUI();
+            render();
+            setTimeout(play, 50);
+        }
+        
+        function toggleSetting(key) {
+            settings[key] = !settings[key];
+            document.getElementById(key + 'Toggle').classList.toggle('on', settings[key]);
+            render();
+        }
+        
+        // ==================== UI更新 ====================
+        function updateUI() {
+            const pos = getPosition(currentTime);
+            
+            document.getElementById('timeText').textContent = currentTime.toFixed(2);
+            document.getElementById('valP').textContent = pos.p.toFixed(1);
+            document.getElementById('valQ').textContent = pos.q.toFixed(1);
+            document.getElementById('valPQ').textContent = pos.dist.toFixed(1);
+            document.getElementById('valOrigin').textContent = 
+                `${pos.distP.toFixed(1)}|${pos.distQ.toFixed(1)}`;
+            
+            // 状态文字
+            const descPQ = document.getElementById('descPQ');
+            const descOrigin = document.getElementById('descOrigin');
+            const boxPQ = document.getElementById('boxPQ');
+            const boxOrigin = document.getElementById('boxOrigin');
+            
+            if (Math.abs(pos.dist - 8) < 0.05) {
+                descPQ.textContent = '✓ 等于8!';
+                descPQ.style.color = '#3b82f6';
+                boxPQ.classList.add('highlight');
+            } else {
+                descPQ.textContent = pos.dist > 8 ? '大于8' : '小于8';
+                descPQ.style.color = '#94a3b8';
+                boxPQ.classList.remove('highlight');
+            }
+            
+            if (Math.abs(pos.distP - pos.distQ) < 0.05 && currentTime > 0.5) {
+                descOrigin.textContent = '✓ 对称!';
+                descOrigin.style.color = '#10b981';
+                if (!pausedForSymmetry) boxOrigin.classList.add('highlight-sym');
+            } else {
+                descOrigin.textContent = '不对称';
+                descOrigin.style.color = '#94a3b8';
+                if (!pausedForSymmetry) boxOrigin.classList.remove('highlight-sym');
+            }
+        }
+        
+        function updatePlayButton() {
+            const icon = document.getElementById('playIcon');
+            const text = document.getElementById('playText');
+            const btn = document.getElementById('playBtn');
+            
+            if (isPlaying) {
+                icon.textContent = '⏸';
+                text.textContent = '暂停';
+                btn.className = 'btn btn-pause';
+            } else {
+                icon.textContent = '▶';
+                text.textContent = pausedForSymmetry ? '继续' : '播放';
+                btn.className = 'btn btn-primary';
+            }
+        }
+        
+        // ==================== Canvas渲染 ====================
+        function render() {
+            const pos = getPosition(currentTime);
+            const px = centerX + pos.p * scale;
+            const qx = centerX + pos.q * scale;
+            
+            // 清空
+            ctx.fillStyle = '#f0f9ff';
+            ctx.fillRect(0, 0, width, height);
+            
+            // 网格
+            drawGrid();
+            
+            // 数轴
+            drawAxis();
+            
+            // 轨迹
+            if (settings.showTrail) drawTrail(currentTime);
+            
+            // 对称特效
+            if (Math.abs(pos.distP - pos.distQ) < 0.1 && currentTime > 0.5) {
+                drawSymmetryEffect(px, qx, pos.distP);
+            }
+            
+            // 距离线
+            drawDistanceLine(px, qx, pos.dist);
+            
+            // 静态点
+            drawStaticPoint(A, 'A', '#ef4444');
+            drawStaticPoint(B, 'B', '#3b82f6');
+            drawStaticPoint(14, 'C', '#10b981');
+            drawStaticPoint(-10, 'D', '#f59e0b');
+            
+            // 动态点
+            drawPoint(px, 'P', '#8b5cf6', VP, pos.p);
+            drawPoint(qx, 'Q', '#ec4899', -VQ, pos.q);
+            
+            // 原点
+            drawOrigin();
+        }
+        
+        function drawGrid() {
+            ctx.strokeStyle = '#e0f2fe';
+            ctx.lineWidth = 1;
+            
+            for (let i = -30; i <= 30; i += 5) {
+                const x = centerX + i * scale;
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, height);
+                ctx.stroke();
+            }
+            
+            for (let y = 0; y < height; y += 30) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(width, y);
+                ctx.stroke();
+            }
+        }
+        
+        function drawAxis() {
+            ctx.strokeStyle = '#0369a1';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(0, centerY);
+            ctx.lineTo(width, centerY);
+            ctx.stroke();
+            
+            // 箭头
+            ctx.fillStyle = '#0369a1';
+            ctx.beginPath();
+            ctx.moveTo(width - 12, centerY - 6);
+            ctx.lineTo(width, centerY);
+            ctx.lineTo(width - 12, centerY + 6);
+            ctx.fill();
+            
+            // 刻度
+            ctx.fillStyle = '#475569';
+            ctx.font = 'bold 11px sans-serif';
+            ctx.textAlign = 'center';
+            
+            for (let i = -25; i <= 25; i++) {
+                const x = centerX + i * scale;
+                const isMajor = i % 5 === 0;
+                
+                ctx.strokeStyle = isMajor ? '#0284c7' : '#94a3b8';
+                ctx.lineWidth = isMajor ? 2 : 1;
+                ctx.beginPath();
+                ctx.moveTo(x, centerY - (isMajor ? 8 : 4));
+                ctx.lineTo(x, centerY + (isMajor ? 8 : 4));
+                ctx.stroke();
+                
+                if (isMajor && i !== 0) {
+                    ctx.fillText(i, x, centerY + 22);
+                }
+            }
+        }
+        
+        function drawOrigin() {
+            const x = centerX;
+            
+            // 发光效果
+            ctx.shadowColor = '#ef4444';
+            ctx.shadowBlur = 15;
+            ctx.fillStyle = '#ef4444';
+            ctx.fillRect(x - 2, centerY - 15, 4, 30);
+            ctx.shadowBlur = 0;
+            
+            // 标签
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 12px sans-serif';
+            ctx.fillText('O', x, centerY - 22);
+            
+            // 外圈
+            ctx.strokeStyle = '#ef4444';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(x, centerY, 20, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+        
+        function drawStaticPoint(val, label, color) {
+            const x = centerX + val * scale;
+            const y = centerY + 50;
+            
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(x, y, 10, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 10px sans-serif';
+            ctx.fillText(label, x, y);
+            
+            ctx.fillStyle = color;
+            ctx.font = '10px sans-serif';
+            ctx.fillText(val, x, y + 18);
+        }
+        
+        function drawPoint(x, label, color, velocity, val) {
+            // 发光
+            ctx.shadowColor = color;
+            ctx.shadowBlur = 20;
+            
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(x, centerY, 16, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            
+            ctx.shadowBlur = 0;
+            
+            // 标签
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 12px sans-serif';
+            ctx.fillText(label, x, centerY);
+            
+            // 速度
+            ctx.fillStyle = color;
+            ctx.font = 'bold 10px sans-serif';
+            const dir = velocity > 0 ? '→' : '←';
+            ctx.fillText(`${dir}${Math.abs(velocity)}`, x + (velocity > 0 ? 28 : -28), centerY - 20);
+            
+            // 数值
+            ctx.fillStyle = '#64748b';
+            ctx.font = '10px sans-serif';
+            ctx.fillText(val.toFixed(1), x, centerY + 28);
+        }
+        
+        function drawTrail(t) {
+            const pos = getPosition(t);
+            
+            // P轨迹
+            ctx.strokeStyle = 'rgba(139, 92, 246, 0.2)';
+            ctx.lineWidth = 6;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(centerX + A * scale, centerY);
+            ctx.lineTo(centerX + pos.p * scale, centerY);
+            ctx.stroke();
+            
+            // Q轨迹
+            ctx.strokeStyle = 'rgba(236, 72, 153, 0.2)';
+            ctx.beginPath();
+            ctx.moveTo(centerX + B * scale, centerY);
+            ctx.lineTo(centerX + pos.q * scale, centerY);
+            ctx.stroke();
+        }
+        
+        function drawDistanceLine(px, qx, dist) {
+            if (dist < 0.5) return;
+            
+            const left = Math.min(px, qx);
+            const width = Math.abs(px - qx);
+            const y = centerY - 40;
+            
+            ctx.strokeStyle = '#3b82f6';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            ctx.moveTo(left, y);
+            ctx.lineTo(left + width, y);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            ctx.fillStyle = '#3b82f6';
+            ctx.beginPath();
+            ctx.arc(left, y, 3, 0, Math.PI * 2);
+            ctx.arc(left + width, y, 3, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // 标签
+            const mid = left + width / 2;
+            ctx.fillStyle = '#3b82f6';
+            ctx.font = 'bold 11px sans-serif';
+            ctx.fillText(dist.toFixed(1), mid, y - 8);
+        }
+        
+        function drawSymmetryEffect(px, qx, dist) {
+            const mid = (px + qx) / 2;
+            
+            // 对称轴
+            ctx.strokeStyle = '#10b981';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([6, 4]);
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY - 60);
+            ctx.lineTo(centerX, centerY + 60);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // 连接线
+            ctx.strokeStyle = 'rgba(16, 185, 129, 0.3)';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(px, centerY);
+            ctx.lineTo(qx, centerY);
+            ctx.stroke();
+            
+            // 高亮
+            [px, qx].forEach((x, i) => {
+                ctx.shadowColor = '#10b981';
+                ctx.shadowBlur = 25;
+                ctx.fillStyle = '#10b981';
+                ctx.beginPath();
+                ctx.arc(x, centerY, 20, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+                
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 12px sans-serif';
+                ctx.fillText(i === 0 ? 'P' : 'Q', x, centerY);
+            });
+            
+            // 提示
+            ctx.fillStyle = '#10b981';
+            ctx.font = 'bold 13px sans-serif';
+            ctx.fillText('✨ 对称!', centerX, centerY - 75);
+        }
+        
+        // 启动
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
